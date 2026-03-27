@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystal Vortex</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #container {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  canvas {
+    display: block;
+    box-shadow: 0 0 40px rgba(124, 58, 237, 0.15), 0 0 80px rgba(37, 99, 235, 0.1);
+    cursor: crosshair;
+  }
+  #controls {
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #controls h3 {
+    color: rgba(255,255,255,0.6);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin: 0;
+  }
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .slider-label span {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+  }
+  .slider-label .value {
+    color: rgba(255,255,255,0.3);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    cursor: pointer;
+    border: none;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: rgba(255,255,255,0.8);
+  }
+  .divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <canvas id="canvas"></canvas>
+  <div id="controls">
+    <h3>Physics</h3>
+    <div class="slider-group">
+      <div class="slider-label"><span>Gravity</span><span class="value" id="val-gravity">800</span></div>
+      <input type="range" id="sl-gravity" min="0" max="5000" value="800" step="50">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Spiral</span><span class="value" id="val-tangential">800</span></div>
+      <input type="range" id="sl-tangential" min="0" max="5000" value="800" step="50">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Repulse</span><span class="value" id="val-repulse">45</span></div>
+      <input type="range" id="sl-repulse" min="5" max="500" value="45" step="5">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Repulse Radius</span><span class="value" id="val-repulse-radius">300</span></div>
+      <input type="range" id="sl-repulse-radius" min="50" max="800" value="300" step="10">
+    </div>
+    <div class="divider"></div>
+    <h3>Movement</h3>
+    <div class="slider-group">
+      <div class="slider-label"><span>Speed</span><span class="value" id="val-speed">0.6</span></div>
+      <input type="range" id="sl-speed" min="0.1" max="3" value="0.6" step="0.1">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Max Speed</span><span class="value" id="val-maxspeed">4</span></div>
+      <input type="range" id="sl-maxspeed" min="1" max="20" value="4" step="0.5">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Friction</span><span class="value" id="val-friction">0.98</span></div>
+      <input type="range" id="sl-friction" min="0.9" max="1" value="0.98" step="0.005">
+    </div>
+    <div class="divider"></div>
+    <h3>Particles</h3>
+    <div class="slider-group">
+      <div class="slider-label"><span>Count</span><span class="value" id="val-count">150</span></div>
+      <input type="range" id="sl-count" min="20" max="500" value="150" step="10">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Trail Length</span><span class="value" id="val-trail">15</span></div>
+      <input type="range" id="sl-trail" min="0" max="50" value="15" step="1">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Glow</span><span class="value" id="val-glow">6</span></div>
+      <input type="range" id="sl-glow" min="0" max="20" value="6" step="1">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Collision Force</span><span class="value" id="val-collision">2</span></div>
+      <input type="range" id="sl-collision" min="0" max="10" value="2" step="0.5">
+    </div>
+    <div class="slider-group">
+      <div class="slider-label"><span>Collision Radius</span><span class="value" id="val-collision-radius">15</span></div>
+      <input type="range" id="sl-collision-radius" min="5" max="50" value="15" step="1">
+    </div>
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- Config (mutable via sliders) ---
+const params = {
+  particleCount: 150,
+  trailLength: 15,
+  friction: 0.98,
+  maxSpeed: 4,
+  baseSpeed: 0.6,
+  vortexRadial: 800,
+  vortexTangential: 800,
+  vortexInnerBoundary: 20,
+  repulseStrength: 45,
+  repulseRadius: 300,
+  vortexFadeDuration: 1500,
+  glow: 6,
+  collisionForce: 2,
+  collisionRadius: 15,
+};
+
+const JEWEL_COLORS = [
+  { r: 37, g: 99, b: 235 },   // Sapphire
+  { r: 5, g: 150, b: 105 },   // Emerald
+  { r: 220, g: 38, b: 38 },   // Ruby
+  { r: 124, g: 58, b: 237 },  // Amethyst
+  { r: 217, g: 119, b: 6 },   // Topaz
+];
+
+// --- Slider wiring ---
+function wireSlider(id, param, valId) {
+  const sl = document.getElementById(id);
+  const val = document.getElementById(valId);
+  sl.addEventListener('input', () => {
+    params[param] = parseFloat(sl.value);
+    val.textContent = sl.value;
+    if (param === 'particleCount') syncParticleCount();
+  });
+}
+wireSlider('sl-gravity', 'vortexRadial', 'val-gravity');
+wireSlider('sl-tangential', 'vortexTangential', 'val-tangential');
+wireSlider('sl-repulse', 'repulseStrength', 'val-repulse');
+wireSlider('sl-repulse-radius', 'repulseRadius', 'val-repulse-radius');
+wireSlider('sl-speed', 'baseSpeed', 'val-speed');
+wireSlider('sl-maxspeed', 'maxSpeed', 'val-maxspeed');
+wireSlider('sl-friction', 'friction', 'val-friction');
+wireSlider('sl-count', 'particleCount', 'val-count');
+wireSlider('sl-trail', 'trailLength', 'val-trail');
+wireSlider('sl-glow', 'glow', 'val-glow');
+wireSlider('sl-collision', 'collisionForce', 'val-collision');
+wireSlider('sl-collision-radius', 'collisionRadius', 'val-collision-radius');
+
+// --- Simplex-like noise (value noise with smoothing) ---
+const NOISE_SCALE = 0.003;
+
+function noise2D(x, y) {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  function hash(a, b) {
+    let h = (a * 73856093) ^ (b * 19349663);
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = (h >> 16) ^ h;
+    return (h & 0xffff) / 0xffff;
+  }
+  const n00 = hash(ix, iy);
+  const n10 = hash(ix + 1, iy);
+  const n01 = hash(ix, iy + 1);
+  const n11 = hash(ix + 1, iy + 1);
+  const nx0 = n00 + sx * (n10 - n00);
+  const nx1 = n01 + sx * (n11 - n01);
+  return nx0 + sy * (nx1 - nx0);
+}
+
+// --- State ---
+let W, H;
+let mouse = { x: -1000, y: -1000, active: false };
+let vortexStrength = 0;
+let lastTime = 0;
+
+// --- Resize ---
+function resize() {
+  const controlsWidth = 220 + 24; // controls width + gap
+  const availW = window.innerWidth - controlsWidth - 60;
+  const availH = window.innerHeight - 40;
+  const size = Math.min(availW, availH, 900);
+  const s = Math.max(size, 400);
+  W = s;
+  H = s;
+  canvas.width = s;
+  canvas.height = s;
+  canvas.style.width = s + 'px';
+  canvas.style.height = s + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Crystal Shard Shape ---
+function generateShardVertices(size) {
+  const len = size;
+  const w = len * 0.35;
+  const vertices = [
+    { x: -len * 0.5, y: 0 },
+    { x: -len * 0.15 + (Math.random() - 0.5) * w * 0.3, y: -w * (0.7 + Math.random() * 0.3) },
+    { x: len * 0.5, y: (Math.random() - 0.5) * w * 0.2 },
+    { x: -len * 0.1 + (Math.random() - 0.5) * w * 0.3, y: w * (0.7 + Math.random() * 0.3) },
+  ];
+  if (Math.random() > 0.4) {
+    vertices.splice(2, 0, {
+      x: len * 0.2 + (Math.random() - 0.5) * w * 0.2,
+      y: -w * (0.3 + Math.random() * 0.4)
+    });
+  }
+  return vertices;
+}
+
+// --- Particle ---
+class Particle {
+  constructor() {
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * params.baseSpeed * 2;
+    this.vy = (Math.random() - 0.5) * params.baseSpeed * 2;
+    this.size = 8 + Math.random() * 8;
+    this.color = JEWEL_COLORS[Math.floor(Math.random() * JEWEL_COLORS.length)];
+    this.vertices = generateShardVertices(this.size);
+    this.trail = [];
+    this.noiseT = Math.random() * 10000;
+    this.blastFrames = 0;
+  }
+
+  update(dt) {
+    const dtScale = dt / 16.67;
+
+    // Noise-based wandering
+    this.noiseT += dt * 0.001;
+    const angle = noise2D(
+      this.x * NOISE_SCALE + this.noiseT,
+      this.y * NOISE_SCALE + this.noiseT
+    ) * Math.PI * 4;
+    this.vx += Math.cos(angle) * params.baseSpeed * 0.08 * dtScale;
+    this.vy += Math.sin(angle) * params.baseSpeed * 0.08 * dtScale;
+
+    // Vortex force
+    if (vortexStrength > 0.01) {
+      const dx = mouse.x - this.x;
+      const dy = mouse.y - this.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 1) {
+        const nx = dx / dist;
+        const ny = dy / dist;
+        const cappedDist = Math.max(dist, 40);
+        let radialForce = params.vortexRadial / cappedDist * vortexStrength * dtScale * 0.1;
+
+        // Inner boundary repulsion
+        if (dist < params.vortexInnerBoundary) {
+          radialForce = -radialForce * 0.5;
+        }
+
+        this.vx += nx * radialForce;
+        this.vy += ny * radialForce;
+
+        // Tangential force (perpendicular, creates spiral)
+        const tangentialForce = params.vortexTangential / cappedDist * vortexStrength * dtScale * 0.1;
+        this.vx += -ny * tangentialForce;
+        this.vy += nx * tangentialForce;
+      }
+    }
+
+    // Friction
+    this.vx *= Math.pow(params.friction, dtScale);
+    this.vy *= Math.pow(params.friction, dtScale);
+
+    // Speed cap (disabled during blast)
+    if (this.blastFrames > 0) {
+      this.blastFrames--;
+    } else {
+      const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+      if (speed > params.maxSpeed) {
+        this.vx = (this.vx / speed) * params.maxSpeed;
+        this.vy = (this.vy / speed) * params.maxSpeed;
+      }
+    }
+
+    // Move
+    this.x += this.vx * dtScale;
+    this.y += this.vy * dtScale;
+
+    // Wrap edges
+    if (this.x < -this.size) this.x = W + this.size;
+    if (this.x > W + this.size) this.x = -this.size;
+    if (this.y < -this.size) this.y = H + this.size;
+    if (this.y > H + this.size) this.y = -this.size;
+
+    // Trail
+    this.trail.unshift({ x: this.x, y: this.y });
+    while (this.trail.length > params.trailLength) this.trail.pop();
+
+    // Cap trail by pixel length (max 5x particle size)
+    const maxPixelLen = this.size * 5;
+    let totalLen = 0;
+    for (let i = 1; i < this.trail.length; i++) {
+      const tdx = this.trail[i].x - this.trail[i - 1].x;
+      const tdy = this.trail[i].y - this.trail[i - 1].y;
+      totalLen += Math.sqrt(tdx * tdx + tdy * tdy);
+      if (totalLen > maxPixelLen) {
+        this.trail.length = i + 1;
+        break;
+      }
+    }
+  }
+
+  drawTrail() {
+    if (this.trail.length < 2) return;
+    const { r, g, b } = this.color;
+    const wrapThreshold = W * 0.5;
+    for (let i = 0; i < this.trail.length - 1; i++) {
+      const dx = Math.abs(this.trail[i].x - this.trail[i + 1].x);
+      const dy = Math.abs(this.trail[i].y - this.trail[i + 1].y);
+      if (dx > wrapThreshold || dy > wrapThreshold) continue;
+      const t = 1 - i / this.trail.length;
+      const alpha = t * 0.6;
+      const width = t * (this.size * 0.2) + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(this.trail[i].x, this.trail[i].y);
+      ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+  }
+
+  drawShard() {
+    const { r, g, b } = this.color;
+    const angle = Math.atan2(this.vy, this.vx);
+
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(angle);
+
+    // Glow
+    ctx.shadowBlur = params.glow;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
+    for (let i = 1; i < this.vertices.length; i++) {
+      ctx.lineTo(this.vertices[i].x, this.vertices[i].y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${r},${g},${b},0.35)`;
+    ctx.fill();
+
+    // Edge stroke
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.9)`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
+// --- Init particles ---
+const particles = [];
+for (let i = 0; i < params.particleCount; i++) {
+  particles.push(new Particle());
+}
+
+function syncParticleCount() {
+  const target = Math.round(params.particleCount);
+  while (particles.length < target) particles.push(new Particle());
+  while (particles.length > target) particles.pop();
+}
+
+// --- Mouse events ---
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = (e.clientX - rect.left) * (W / rect.width);
+  mouse.y = (e.clientY - rect.top) * (H / rect.height);
+  mouse.active = true;
+});
+
+canvas.addEventListener('mouseleave', () => {
+  mouse.active = false;
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  for (const p of particles) {
+    const dx = p.x - mx;
+    const dy = p.y - my;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      // Strong inverse-distance force - close particles get blasted hard
+      const force = params.repulseStrength * 25 / (dist + 20);
+      p.vx = nx * force;
+      p.vy = ny * force;
+      p.blastFrames = 10;
+    }
+  }
+});
+
+// Touch support
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  mouse.x = (touch.clientX - rect.left) * (W / rect.width);
+  mouse.y = (touch.clientY - rect.top) * (H / rect.height);
+  mouse.active = true;
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => {
+  mouse.active = false;
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  const mx = (touch.clientX - rect.left) * (W / rect.width);
+  const my = (touch.clientY - rect.top) * (H / rect.height);
+  mouse.x = mx;
+  mouse.y = my;
+  mouse.active = true;
+
+  for (const p of particles) {
+    const dx = p.x - mx;
+    const dy = p.y - my;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const force = params.repulseStrength * 25 / (dist + 20);
+      p.vx = nx * force;
+      p.vy = ny * force;
+      p.blastFrames = 10;
+    }
+  }
+}, { passive: false });
+
+// --- Animation loop ---
+let vortexFadeStart = 0;
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  if (!lastTime) { lastTime = time; return; }
+  const dt = Math.min(time - lastTime, 50);
+  lastTime = time;
+
+  // Vortex strength fade
+  if (mouse.active) {
+    vortexStrength = Math.min(vortexStrength + dt / 300, 1);
+    vortexFadeStart = time;
+  } else {
+    if (vortexStrength > 0) {
+      const elapsed = time - vortexFadeStart;
+      vortexStrength = Math.max(1 - elapsed / params.vortexFadeDuration, 0);
+    }
+  }
+
+  // Particle collisions
+  if (params.collisionForce > 0) {
+    const cr = params.collisionRadius;
+    const cf = params.collisionForce;
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i];
+        const b = particles[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < cr * cr && distSq > 0.1) {
+          const dist = Math.sqrt(distSq);
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = cr - dist;
+          const force = cf * overlap / cr;
+          a.vx -= nx * force;
+          a.vy -= ny * force;
+          b.vx += nx * force;
+          b.vy += ny * force;
+        }
+      }
+    }
+  }
+
+  // Update
+  for (const p of particles) {
+    p.update(dt);
+  }
+
+  // Render
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw trails first
+  for (const p of particles) {
+    p.drawTrail();
+  }
+
+  // Draw shards on top
+  for (const p of particles) {
+    p.drawShard();
+  }
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
