@@ -2,6 +2,10 @@
 
 Interactive particle art piece. Crystal shards drift across a black canvas, responding to mouse interaction in real time.
 
+[Try Demo](https://crystal-vortex.vercel.app/)
+
+This app is meant to be used as an input source for [Daydream Scope](https://github.com/daydreamlive/scope).
+
 ## Interactions
 
 - **Hover** over the canvas to pull particles toward your cursor in a vortex spiral
