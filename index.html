@@ -339,11 +339,11 @@ class Particle {
     this.x += this.vx * dtScale;
     this.y += this.vy * dtScale;
 
-    // Wrap edges
-    if (this.x < -this.size) this.x = W + this.size;
-    if (this.x > W + this.size) this.x = -this.size;
-    if (this.y < -this.size) this.y = H + this.size;
-    if (this.y > H + this.size) this.y = -this.size;
+    // Bounce off edges
+    if (this.x < this.size) { this.x = this.size; this.vx = Math.abs(this.vx); }
+    if (this.x > W - this.size) { this.x = W - this.size; this.vx = -Math.abs(this.vx); }
+    if (this.y < this.size) { this.y = this.size; this.vy = Math.abs(this.vy); }
+    if (this.y > H - this.size) { this.y = H - this.size; this.vy = -Math.abs(this.vy); }
 
     // Trail
     this.trail.unshift({ x: this.x, y: this.y });
