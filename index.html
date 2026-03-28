@@ -367,16 +367,33 @@ class Particle {
     if (this.trail.length < 2) return;
     const { r, g, b } = this.color;
     const wrapThreshold = W * 0.5;
+    // Batch into segments between wraps
+    let segStart = 0;
     for (let i = 0; i < this.trail.length - 1; i++) {
       const dx = Math.abs(this.trail[i].x - this.trail[i + 1].x);
       const dy = Math.abs(this.trail[i].y - this.trail[i + 1].y);
-      if (dx > wrapThreshold || dy > wrapThreshold) continue;
-      const t = 1 - i / this.trail.length;
+      if (dx > wrapThreshold || dy > wrapThreshold) {
+        segStart = i + 1;
+        continue;
+      }
+    }
+    // Draw as single path per alpha band (3 bands instead of per-segment)
+    const bands = 3;
+    for (let band = 0; band < bands; band++) {
+      const startIdx = Math.floor(band * this.trail.length / bands);
+      const endIdx = Math.floor((band + 1) * this.trail.length / bands);
+      const t = 1 - (startIdx + endIdx) / 2 / this.trail.length;
       const alpha = t * 0.6;
       const width = t * (this.size * 0.2) + 0.5;
       ctx.beginPath();
-      ctx.moveTo(this.trail[i].x, this.trail[i].y);
-      ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+      let moved = false;
+      for (let i = startIdx; i < endIdx && i < this.trail.length - 1; i++) {
+        const tdx = Math.abs(this.trail[i].x - this.trail[i + 1].x);
+        const tdy = Math.abs(this.trail[i].y - this.trail[i + 1].y);
+        if (tdx > wrapThreshold || tdy > wrapThreshold) { moved = false; continue; }
+        if (!moved) { ctx.moveTo(this.trail[i].x, this.trail[i].y); moved = true; }
+        ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+      }
       ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
       ctx.lineWidth = width;
       ctx.stroke();
@@ -391,9 +408,18 @@ class Particle {
     ctx.translate(this.x, this.y);
     ctx.rotate(angle);
 
-    // Glow
-    ctx.shadowBlur = params.glow;
-    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    // Fake glow: larger transparent shape behind (no shadowBlur)
+    if (params.glow > 0) {
+      const glowScale = 1 + params.glow * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(this.vertices[0].x * glowScale, this.vertices[0].y * glowScale);
+      for (let i = 1; i < this.vertices.length; i++) {
+        ctx.lineTo(this.vertices[i].x * glowScale, this.vertices[i].y * glowScale);
+      }
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${r},${g},${b},0.12)`;
+      ctx.fill();
+    }
 
     // Fill
     ctx.beginPath();
@@ -410,7 +436,6 @@ class Particle {
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    ctx.shadowBlur = 0;
     ctx.restore();
   }
 }
@@ -520,27 +545,75 @@ function animate(time) {
     }
   }
 
-  // Particle collisions
+  // Particle collisions (spatial grid)
   if (params.collisionForce > 0) {
     const cr = params.collisionRadius;
     const cf = params.collisionForce;
+    const cellSize = cr;
+    const cols = Math.ceil(W / cellSize) + 1;
+    const rows = Math.ceil(H / cellSize) + 1;
+    const grid = new Array(cols * rows);
+    for (let i = 0; i < grid.length; i++) grid[i] = null;
+
+    // Assign particles to grid cells (linked list per cell)
     for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const a = particles[i];
-        const b = particles[j];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < cr * cr && distSq > 0.1) {
-          const dist = Math.sqrt(distSq);
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const overlap = cr - dist;
-          const force = cf * overlap / cr;
-          a.vx -= nx * force;
-          a.vy -= ny * force;
-          b.vx += nx * force;
-          b.vy += ny * force;
+      const p = particles[i];
+      const cx = Math.floor(p.x / cellSize);
+      const cy = Math.floor(p.y / cellSize);
+      if (cx >= 0 && cx < cols && cy >= 0 && cy < rows) {
+        const idx = cy * cols + cx;
+        p._nextInCell = grid[idx];
+        p._cellIdx = i;
+        grid[idx] = p;
+      }
+    }
+
+    // Check only neighboring cells
+    const crSq = cr * cr;
+    for (let cy = 0; cy < rows; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        let a = grid[cy * cols + cx];
+        while (a) {
+          // Check same cell (only particles after a)
+          let b = a._nextInCell;
+          while (b) {
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < crSq && distSq > 0.1) {
+              const dist = Math.sqrt(distSq);
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const force = cf * (cr - dist) / cr;
+              a.vx -= nx * force;
+              a.vy -= ny * force;
+              b.vx += nx * force;
+              b.vy += ny * force;
+            }
+            b = b._nextInCell;
+          }
+          // Check right and bottom neighbors (avoid double-checking)
+          for (const [ncx, ncy] of [[cx+1,cy],[cx-1,cy+1],[cx,cy+1],[cx+1,cy+1]]) {
+            if (ncx < 0 || ncx >= cols || ncy >= rows) continue;
+            let nb = grid[ncy * cols + ncx];
+            while (nb) {
+              const dx = nb.x - a.x;
+              const dy = nb.y - a.y;
+              const distSq = dx * dx + dy * dy;
+              if (distSq < crSq && distSq > 0.1) {
+                const dist = Math.sqrt(distSq);
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const force = cf * (cr - dist) / cr;
+                a.vx -= nx * force;
+                a.vy -= ny * force;
+                nb.vx += nx * force;
+                nb.vy += ny * force;
+              }
+              nb = nb._nextInCell;
+            }
+          }
+          a = a._nextInCell;
         }
       }
     }
